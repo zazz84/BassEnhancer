@@ -11,7 +11,7 @@
 #include <JuceHeader.h>
 
 //==============================================================================
-class LowPassFilter
+/*class LowPassFilter
 {
 public:
 	LowPassFilter() {};
@@ -30,7 +30,76 @@ protected:
 	float m_OutLastCoef = 0.0f;
 
 	float m_OutLast = 0.0f;
+};*/
+
+//==============================================================================
+class LowPassFilter
+{
+public:
+	LowPassFilter() {};
+
+	void init(int sampleRate) { m_SampleRate = sampleRate; }
+	void setCoef(float frequency)
+	{
+		float warp = tan((frequency * 3.14f) / m_SampleRate);
+		m_OutLastCoef = (1 - warp) / (1 + warp);
+		m_InCoef = warp / (1 + warp);
+	}
+	float process(float in)
+	{ 
+		m_OutLast = m_InCoef * (in + m_InLast) + m_OutLastCoef * m_OutLast;
+		m_InLast = in;
+		return m_OutLast;
+	}
+
+protected:
+	int   m_SampleRate = 48000;
+	float m_InCoef = 1.0f;
+	float m_OutLastCoef = 0.0f;
+
+	float m_OutLast = 0.0f;
+	float m_InLast = 0.0f;
 };
+
+//==============================================================================
+class LadderFilter
+{
+public:
+	void init(int sampleRate)
+	{
+		m_SampleRate = sampleRate;
+		m_lowPassFilter[0].init(sampleRate);
+		m_lowPassFilter[1].init(sampleRate);
+		m_lowPassFilter[2].init(sampleRate);
+		m_lowPassFilter[3].init(sampleRate);
+	}
+	void setCoef(float frequency)
+	{
+		m_lowPassFilter[0].setCoef(frequency);
+		m_lowPassFilter[1].setCoef(frequency);
+		m_lowPassFilter[2].setCoef(frequency);
+		m_lowPassFilter[3].setCoef(frequency);
+	}
+	float process(float in, float resonance)
+	{
+		float lowPass = in - resonance * m_OutLast;
+
+		lowPass = m_lowPassFilter[0].process(lowPass);
+		lowPass = m_lowPassFilter[1].process(lowPass);
+		lowPass = m_lowPassFilter[2].process(lowPass);
+		lowPass = m_lowPassFilter[3].process(lowPass);
+
+		m_OutLast = lowPass;
+		return lowPass;
+	}
+
+protected:
+	LowPassFilter m_lowPassFilter[4] = {};
+	int   m_SampleRate = 48000;
+
+	float m_OutLast = 0.0f;
+};
+
 
 //==============================================================================
 
@@ -101,12 +170,17 @@ public:
 private:	
 	//==============================================================================
 	std::atomic<float>* frequencyParameter = nullptr;
-	std::atomic<float>* thresholdParameter = nullptr;
+	std::atomic<float>* gainParameter = nullptr;
 	std::atomic<float>* mixParameter = nullptr;
 	std::atomic<float>* volumeParameter = nullptr;
 
+	juce::AudioParameterBool* buttonAParameter = nullptr;
+	juce::AudioParameterBool* buttonBParameter = nullptr;
+	juce::AudioParameterBool* buttonCParameter = nullptr;
+
 	LowPassFilter12dB m_preFilter[2] = {};
 	LowPassFilter12dB m_postFilter[2] = {};
+	LadderFilter m_ladderFilter[2] = {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BassEnhancerAudioProcessor)
 };

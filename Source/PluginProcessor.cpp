@@ -9,7 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-const std::string BassEnhancerAudioProcessor::paramsNames[] = { "Frequency", "Threshold", "Mix", "Volume" };
+const std::string BassEnhancerAudioProcessor::paramsNames[] = { "Frequency", "Gain", "Mix", "Volume" };
 
 //==============================================================================
 BassEnhancerAudioProcessor::BassEnhancerAudioProcessor()
@@ -25,9 +25,13 @@ BassEnhancerAudioProcessor::BassEnhancerAudioProcessor()
 #endif
 {
 	frequencyParameter = apvts.getRawParameterValue(paramsNames[0]);
-	thresholdParameter = apvts.getRawParameterValue(paramsNames[1]);
+	gainParameter      = apvts.getRawParameterValue(paramsNames[1]);
 	mixParameter       = apvts.getRawParameterValue(paramsNames[2]);
 	volumeParameter    = apvts.getRawParameterValue(paramsNames[3]);
+
+	buttonAParameter = static_cast<juce::AudioParameterBool*>(apvts.getParameter("ButtonA"));
+	buttonBParameter = static_cast<juce::AudioParameterBool*>(apvts.getParameter("ButtonB"));
+	buttonCParameter = static_cast<juce::AudioParameterBool*>(apvts.getParameter("ButtonC"));
 }
 
 BassEnhancerAudioProcessor::~BassEnhancerAudioProcessor()
@@ -98,12 +102,15 @@ void BassEnhancerAudioProcessor::changeProgramName (int index, const juce::Strin
 
 //==============================================================================
 void BassEnhancerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
-{
+{	
 	m_preFilter[0].init((int)(sampleRate));
 	m_preFilter[1].init((int)(sampleRate));
 
 	m_postFilter[0].init((int)(sampleRate));
 	m_postFilter[1].init((int)(sampleRate));
+
+	m_ladderFilter[0].init((int)(sampleRate));
+	m_ladderFilter[1].init((int)(sampleRate));
 }
 
 void BassEnhancerAudioProcessor::releaseResources()
@@ -141,12 +148,17 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
 	// Get params
 	const auto frequency = frequencyParameter->load();
-	const auto threshold = thresholdParameter->load();
+	const auto gainNormalized = gainParameter->load();
 	const auto mix = mixParameter->load();
 	const auto volume = juce::Decibels::decibelsToGain(volumeParameter->load());
 
+	// Buttons
+	const auto buttonA = buttonAParameter->get();
+	const auto buttonB = buttonBParameter->get();
+	const auto buttonC = buttonCParameter->get();
+
 	// Mics constants
-	const float thresholdGain = juce::Decibels::decibelsToGain(threshold);
+	const float gain = juce::Decibels::decibelsToGain(gainNormalized * 48.0f);
 	const float mixInverse = 1.0f - mix;
 	const int channels = getTotalNumOutputChannels();
 	const int samples = buffer.getNumSamples();		
@@ -159,28 +171,68 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 		// Filters
 		auto& preFilter = m_preFilter[channel];
 		auto& postFilter = m_postFilter[channel];
+		auto& ladderFilter = m_ladderFilter[channel];
 
-		preFilter.setCoef(2.0f * frequency);
+		preFilter.setCoef(frequency);
 		postFilter.setCoef(frequency);
+		ladderFilter.setCoef(frequency);
 
-		for (int sample = 0; sample < samples; ++sample)
+		if (buttonA)
 		{
-			// Get input
-			const float in = channelBuffer[sample];
+			for (int sample = 0; sample < samples; ++sample)
+			{
+				// Get input
+				const float in = channelBuffer[sample];
 
-			// Pre filter
-			const float inPreFilter = preFilter.process(in);
+				// Pre filter
+				const float inPreFilter = ladderFilter.process(in, 3.0f) * gain;
 
-			//Distort
-			const float inPreFilterAbs = fabs(inPreFilter);
-			const float sign = inPreFilter / inPreFilterAbs;
-			const float inDistort = (inPreFilterAbs > thresholdGain) ? sign : 0.0f;
+				//Distort
+				const float inPreFilterAbs = fabs(inPreFilter);
+				const float sign = inPreFilter / inPreFilterAbs;
+				const float inDistort = (inPreFilterAbs > 0.25f) ? sign : 0.0f;
 
-			// Post filter
-			const float inPostFilter = postFilter.process(inDistort);
+				// Post filter
+				const float inPostFilter = postFilter.process(inDistort);
 
-			// Apply volume, mix and send to output
-			channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
+				// Apply volume, mix and send to output
+				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
+			}
+		}
+		else if (buttonB)
+		{
+			for (int sample = 0; sample < samples; ++sample)
+			{
+				// Get input
+				const float in = channelBuffer[sample];
+
+				// Pre filter
+				const float inPreFilter = ladderFilter.process(in, 3.6f) * gain;
+
+				//Distort
+				const float inPreFilterAbs = fabs(inPreFilter);
+				const float inDistort = inPreFilter / (1.0f + inPreFilterAbs);
+
+				// Post filter
+				const float inPostFilter = postFilter.process(inDistort);
+
+				// Apply volume, mix and send to output
+				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
+			}
+		}
+		else
+		{
+			for (int sample = 0; sample < samples; ++sample)
+			{
+				// Get input
+				const float in = channelBuffer[sample];
+
+				// Pre filter
+				const float inPreFilter = ladderFilter.process(in, 3.9f * gainNormalized);
+
+				// Apply volume, mix and send to output
+				channelBuffer[sample] = volume * (mix * inPreFilter + mixInverse * in);
+			}
 		}
 	}
 }
@@ -219,10 +271,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout BassEnhancerAudioProcessor::
 
 	using namespace juce;
 
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[0], paramsNames[0], NormalisableRange<float>( 40.0f, 800.0f,  1.0f, 1.0f), 120.0f));
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[1], paramsNames[1], NormalisableRange<float>(-60.0f,  12.0f,  1.0f, 1.0f), -12.0f));
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[2], paramsNames[2], NormalisableRange<float>(  0.0f,   1.0f, 0.05f, 1.0f),   1.0f));
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[3], paramsNames[3], NormalisableRange<float>(-24.0f,  24.0f,  0.1f, 1.0f),   0.0f));
+	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[0], paramsNames[0], NormalisableRange<float>( 40.0f, 400.0f,  1.0f, 1.0f), 80.0f));
+	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[1], paramsNames[1], NormalisableRange<float>(  0.0f,   1.0f, 0.05f, 1.0f),  0.5f));
+	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[2], paramsNames[2], NormalisableRange<float>(  0.0f,   1.0f, 0.05f, 1.0f),  1.0f));
+	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[3], paramsNames[3], NormalisableRange<float>(-24.0f,  24.0f,  0.1f, 1.0f),  0.0f));
+
+	layout.add(std::make_unique<juce::AudioParameterBool>("ButtonA", "ButtonA", true));
+	layout.add(std::make_unique<juce::AudioParameterBool>("ButtonB", "ButtonB", false));
+	layout.add(std::make_unique<juce::AudioParameterBool>("ButtonC", "ButtonC", false));
 
 	return layout;
 }

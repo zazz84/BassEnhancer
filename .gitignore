@@ -185,3 +185,5 @@ JuceLibraryCode/include_juce_gui_extra.mm
 JuceLibraryCode/JuceHeader.h
 JuceLibraryCode/JucePluginDefines.h
 JuceLibraryCode/ReadMe.txt
+Builds/VisualStudio2017/.vs/BassEnhancer/v15/ipch/AutoPCH/33ea070d7181ae2f/PLUGINEDITOR.ipch
+Builds/VisualStudio2017/.vs/BassEnhancer/v15/ipch/AutoPCH/420bb7bb542d6768/INCLUDE_JUCE_AUDIO_PROCESSORS.ipch
