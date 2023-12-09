@@ -11,6 +11,31 @@
 #include <JuceHeader.h>
 
 //==============================================================================
+class SecondOrderAllPass
+{
+public:
+	SecondOrderAllPass();
+
+	void init(int sampleRate);
+	void setCoef(float frequency, float Q);
+	float process(float in);
+
+protected:
+	float m_sampleRate;
+	float m_a0 = 1.0f;
+	float m_a1 = 0.0f;
+	float m_a2 = 0.0f;
+	float m_b0 = 0.0f;
+	float m_b1 = 0.0f;
+	float m_b2 = 1.0f;
+
+	float m_x1 = 0.0f;
+	float m_x2 = 0.0f;
+	float m_y1 = 0.0f;
+	float m_y2 = 0.0f;
+};
+
+//==============================================================================
 /*class LowPassFilter
 {
 public:
@@ -41,7 +66,7 @@ public:
 	void init(int sampleRate) { m_SampleRate = sampleRate; }
 	void setCoef(float frequency)
 	{
-		float warp = tan((frequency * 3.14f) / m_SampleRate);
+		float warp = tan((frequency * 3.141593f) / m_SampleRate);
 		m_OutLastCoef = (1 - warp) / (1 + warp);
 		m_InCoef = warp / (1 + warp);
 	}
@@ -177,10 +202,12 @@ private:
 	juce::AudioParameterBool* buttonAParameter = nullptr;
 	juce::AudioParameterBool* buttonBParameter = nullptr;
 	juce::AudioParameterBool* buttonCParameter = nullptr;
+	juce::AudioParameterBool* buttonDParameter = nullptr;
 
 	LowPassFilter12dB m_preFilter[2] = {};
 	LowPassFilter12dB m_postFilter[2] = {};
 	LadderFilter m_ladderFilter[2] = {};
+	SecondOrderAllPass m_secondOrderAllPass[2] = {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BassEnhancerAudioProcessor)
 };

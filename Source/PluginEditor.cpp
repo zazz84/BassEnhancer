@@ -44,32 +44,32 @@ BassEnhancerAudioProcessorEditor::BassEnhancerAudioProcessorEditor (BassEnhancer
 	addAndMakeVisible(typeAButton);
 	addAndMakeVisible(typeBButton);
 	addAndMakeVisible(typeCButton);
-	//addAndMakeVisible(typeDButton);
+	addAndMakeVisible(typeDButton);
 
 	typeAButton.setRadioGroupId(TYPE_BUTTON_GROUP);
 	typeBButton.setRadioGroupId(TYPE_BUTTON_GROUP);
 	typeCButton.setRadioGroupId(TYPE_BUTTON_GROUP);
-	//typeDButton.setRadioGroupId(TYPE_BUTTON_GROUP);
+	typeDButton.setRadioGroupId(TYPE_BUTTON_GROUP);
 
 	typeAButton.setClickingTogglesState(true);
 	typeBButton.setClickingTogglesState(true);
 	typeCButton.setClickingTogglesState(true);
-	//typeDButton.setClickingTogglesState(true);
+	typeDButton.setClickingTogglesState(true);
 
 	buttonAAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(valueTreeState, "ButtonA", typeAButton));
 	buttonBAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(valueTreeState, "ButtonB", typeBButton));
 	buttonCAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(valueTreeState, "ButtonC", typeCButton));
-	//buttonDAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(valueTreeState, "ButtonD", typeDButton));
+	buttonDAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(valueTreeState, "ButtonD", typeDButton));
 
 	typeAButton.setColour(juce::TextButton::buttonColourId, light);
 	typeBButton.setColour(juce::TextButton::buttonColourId, light);
 	typeCButton.setColour(juce::TextButton::buttonColourId, light);
-	//typeDButton.setColour(juce::TextButton::buttonColourId, light);
+	typeDButton.setColour(juce::TextButton::buttonColourId, light);
 
 	typeAButton.setColour(juce::TextButton::buttonOnColourId, dark);
 	typeBButton.setColour(juce::TextButton::buttonOnColourId, dark);
 	typeCButton.setColour(juce::TextButton::buttonOnColourId, dark);
-	//typeDButton.setColour(juce::TextButton::buttonOnColourId, dark);
+	typeDButton.setColour(juce::TextButton::buttonOnColourId, dark);
 
 	setSize((int)(SLIDER_WIDTH * 0.01f * SCALE * N_SLIDERS_COUNT), (int)((SLIDER_WIDTH + BOTTOM_MENU_HEIGHT) * 0.01f * SCALE));
 }
@@ -105,7 +105,8 @@ void BassEnhancerAudioProcessorEditor::resized()
 	const int buttonHeight = (int)(BOTTOM_MENU_HEIGHT * 0.01f * SCALE * 0.5f);
 	const int center = (int)(getWidth() * 0.5f);
 
-	typeAButton.setBounds((int)(center - buttonHeight * 1.8f), posY, buttonHeight, buttonHeight);
-	typeBButton.setBounds((int)(center - buttonHeight * 0.5f), posY, buttonHeight, buttonHeight);
-	typeCButton.setBounds((int)(center + buttonHeight * 0.8f), posY, buttonHeight, buttonHeight);
+	typeAButton.setBounds((int)(center - buttonHeight * 2.4f), posY, buttonHeight, buttonHeight);
+	typeBButton.setBounds((int)(center - buttonHeight * 1.2f), posY, buttonHeight, buttonHeight);
+	typeCButton.setBounds((int)(center + buttonHeight * 0.0f), posY, buttonHeight, buttonHeight);
+	typeDButton.setBounds((int)(center + buttonHeight * 1.2f), posY, buttonHeight, buttonHeight);
 }

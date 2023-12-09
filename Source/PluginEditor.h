@@ -58,10 +58,12 @@ private:
 	juce::TextButton typeAButton{ "A" };
 	juce::TextButton typeBButton{ "B" };
 	juce::TextButton typeCButton{ "C" };
+	juce::TextButton typeDButton{ "D" };
 
 	std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonAAttachment;
 	std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonBAttachment;
 	std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonCAttachment;
+	std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonDAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BassEnhancerAudioProcessorEditor)
 };
