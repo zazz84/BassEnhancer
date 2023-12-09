@@ -36,28 +36,6 @@ protected:
 };
 
 //==============================================================================
-/*class LowPassFilter
-{
-public:
-	LowPassFilter() {};
-
-	void init(int sampleRate) { m_SampleRate = sampleRate; }
-	void setCoef(float frequency)
-	{
-		m_InCoef = frequency * 3.14f / m_SampleRate;
-		m_OutLastCoef = 1.0f - m_InCoef;
-	}
-	float process(float in) { return m_OutLast = m_InCoef * in + m_OutLastCoef * m_OutLast; }
-
-protected:
-	int   m_SampleRate  = 48000;
-	float m_InCoef      = 1.0f;
-	float m_OutLastCoef = 0.0f;
-
-	float m_OutLast = 0.0f;
-};*/
-
-//==============================================================================
 class LowPassFilter
 {
 public:
@@ -105,9 +83,13 @@ public:
 		m_lowPassFilter[2].setCoef(frequency);
 		m_lowPassFilter[3].setCoef(frequency);
 	}
-	float process(float in, float resonance)
+	void setResonance(float resonance)
 	{
-		float lowPass = in - resonance * m_OutLast;
+		m_resonance = resonance;
+	}
+	float process(float in)
+	{
+		float lowPass = in - m_resonance * m_OutLast;
 
 		lowPass = m_lowPassFilter[0].process(lowPass);
 		lowPass = m_lowPassFilter[1].process(lowPass);
@@ -123,8 +105,8 @@ protected:
 	int   m_SampleRate = 48000;
 
 	float m_OutLast = 0.0f;
+	float m_resonance = 0.0f;
 };
-
 
 //==============================================================================
 
@@ -204,9 +186,8 @@ private:
 	juce::AudioParameterBool* buttonCParameter = nullptr;
 	juce::AudioParameterBool* buttonDParameter = nullptr;
 
-	LowPassFilter12dB m_preFilter[2] = {};
-	LowPassFilter12dB m_postFilter[2] = {};
-	LadderFilter m_ladderFilter[2] = {};
+	LowPassFilter12dB  m_lowPassFilter[2] = {};
+	LadderFilter       m_ladderFilter[2] = {};
 	SecondOrderAllPass m_secondOrderAllPass[2] = {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BassEnhancerAudioProcessor)

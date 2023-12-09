@@ -27,9 +27,9 @@ void SecondOrderAllPass::setCoef(float frequency, float Q)
 	}
 
 	float bandWidth = frequency / Q;
-	float t = std::tanf(3.14f * bandWidth / m_sampleRate);
+	float t = std::tanf(3.141593f * bandWidth / m_sampleRate);
 	float c = (t - 1.0f) / (t + 1.0f);
-	float d = -1.0f * std::cosf(2.0f * 3.14f * frequency / m_sampleRate);
+	float d = -1.0f * std::cosf(2.0f * 3.141593f * frequency / m_sampleRate);
 	
 	m_a1 = d * (1.0f - c);
 	m_a2 = -c;
@@ -145,14 +145,14 @@ void BassEnhancerAudioProcessor::changeProgramName (int index, const juce::Strin
 //==============================================================================
 void BassEnhancerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {	
-	m_preFilter[0].init((int)(sampleRate));
-	m_preFilter[1].init((int)(sampleRate));
-
-	m_postFilter[0].init((int)(sampleRate));
-	m_postFilter[1].init((int)(sampleRate));
+	m_lowPassFilter[0].init((int)(sampleRate));
+	m_lowPassFilter[1].init((int)(sampleRate));
 
 	m_ladderFilter[0].init((int)(sampleRate));
 	m_ladderFilter[1].init((int)(sampleRate));
+
+	m_ladderFilter[0].setResonance(2.0f);
+	m_ladderFilter[1].setResonance(2.0f);
 
 	m_secondOrderAllPass[0].init((int)(sampleRate));
 	m_secondOrderAllPass[1].init((int)(sampleRate));
@@ -204,7 +204,7 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 	const auto buttonD = buttonDParameter->get();
 
 	// Mics constants
-	const float gain = juce::Decibels::decibelsToGain(gainNormalized * 18.0f);
+	const float gain = juce::Decibels::decibelsToGain(gainNormalized * 24.0f);
 	const float mixInverse = 1.0f - mix;
 	const int channels = getTotalNumOutputChannels();
 	const int samples = buffer.getNumSamples();		
@@ -215,38 +215,34 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 		auto* channelBuffer = buffer.getWritePointer(channel);
 
 		// Filters
-		auto& preFilter = m_preFilter[channel];
-		auto& postFilter = m_postFilter[channel];
+		auto& lowPassFilter = m_lowPassFilter[channel];
 		auto& ladderFilter = m_ladderFilter[channel];
 		auto& secondOrderAllPass = m_secondOrderAllPass[channel];
 
-		preFilter.setCoef(frequency);
-		postFilter.setCoef(frequency);
+		// Set filter frequency
+		lowPassFilter.setCoef(frequency);
+	
 		// Arbitrary factor to make LP resonance peak at input frequency
 		const float LADDER_FILTER_FREQUENCY_FACTOR = 1.23f;
 		ladderFilter.setCoef(frequency * LADDER_FILTER_FREQUENCY_FACTOR);
+		
 		secondOrderAllPass.setCoef(frequency, 7.0f);
 
 		if (buttonA)
 		{
-			// Arbitrary volume compensation to make resonance peak af 0dbFS
-			float volumeCompensation = juce::Decibels::decibelsToGain(1.6f);
-			float volumeCompensationPostFilter = juce::Decibels::decibelsToGain(12.0f);
-
 			for (int sample = 0; sample < samples; ++sample)
 			{
 				// Get input
 				const float in = channelBuffer[sample];
 
-				// Pre filter
-				const float inPreFilter = ladderFilter.process(in, 2.0f) * gain * volumeCompensation;
+				// Prefilter
+				const float inPreFilter = lowPassFilter.process(in) * gain;
 
-				//Distort
-				const float inPreFilterAbs = fabsf(inPreFilter);
-				const float inDistort = fmaxf(-1.0f, fminf(1.0f, inPreFilter / (1.0f + inPreFilterAbs)));
+				// Distort
+				const float inDistort = fmaxf(-1.0f, fminf(1.0f, inPreFilter / (1.0f + fabsf(inPreFilter))));
 
 				// Post filter
-				const float inPostFilter = postFilter.process(inDistort) * volumeCompensationPostFilter;
+				const float inPostFilter = ladderFilter.process(inDistort);
 
 				// Apply volume, mix and send to output
 				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
@@ -254,23 +250,19 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 		}
 		else if (buttonB)
 		{
-			// Arbitrary volume compensation to make resonance peak af 0dbFS
-			float volumeCompensationPostFilter = juce::Decibels::decibelsToGain(18.0f);
-
 			for (int sample = 0; sample < samples; ++sample)
 			{
 				// Get input
 				const float in = channelBuffer[sample];
 
-				// Pre filter
-				const float inBandPass = 0.5f * (in - secondOrderAllPass.process(in)) * gain;
+				// Prefilter
+				const float inPreFilter = 0.5f * (in - secondOrderAllPass.process(in)) * gain;
 
-				//Distort
-				const float inBandPassAbs = fabsf(inBandPass);
-				const float inDistort = fmaxf(-1.0f, fminf(1.0f, inBandPass / (1.0f + inBandPassAbs)));
+				// Distort
+				const float inDistort = fmaxf(-1.0f, fminf(1.0f, inPreFilter / (1.0f + fabsf(inPreFilter))));
 
 				// Post filter
-				const float inPostFilter = postFilter.process(inDistort) * volumeCompensationPostFilter;
+				const float inPostFilter = ladderFilter.process(inDistort);
 
 				// Apply volume, mix and send to output
 				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
@@ -282,17 +274,15 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 			{
 				// Get input
 				const float in = channelBuffer[sample];
-				
-				// Pre filter
+
+				// Prefilter
 				const float inPreFilter = 0.5f * (in - secondOrderAllPass.process(in)) * gain;
 
-				//Distort
-				const float inPreFilterAbs = fabsf(inPreFilter);
-				const float sign = inPreFilter / inPreFilterAbs;
-				const float inDistort = (inPreFilterAbs > 0.1f) ? sign : 0.0f;
+				// Distort
+				const float inDistort = (fabsf(inPreFilter) > 0.25f) ? ((inPreFilter >= 0.0f) ? 1.0f : -1.0f) : 0.0f;
 
 				// Post filter
-				const float inPostFilter = ladderFilter.process(sign * inDistort, 2.0f);
+				const float inPostFilter = ladderFilter.process(inDistort);
 
 				// Apply volume, mix and send to output
 				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
@@ -300,25 +290,19 @@ void BassEnhancerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 		}
 		else
 		{
-			// Arbitrary volume compensation to make resonance peak af 0dbFS
-			float volumeCompensationPostFilter = juce::Decibels::decibelsToGain(6.0f);
-
 			for (int sample = 0; sample < samples; ++sample)
 			{
 				// Get input
 				const float in = channelBuffer[sample];
 
-				// Pre filter
+				// Prefilter
 				const float inPreFilter = 0.5f * (in - secondOrderAllPass.process(in)) * gain;
 
-				//Distort
-				const float inPreFilterAbs = fabsf(inPreFilter);
-				const float sign = inPreFilter / inPreFilterAbs;
-				const float inPreFilterAbsLimit = fminf(inPreFilterAbs, 1.0f);
-				const float inDistort = powf(inPreFilterAbsLimit, 2.0f);
+				// Distort
+				const float inDistort = ((inPreFilter >= 0.0f) ? 1.0f : -1.0f) * powf(fminf(fabsf(inPreFilter), 1.0f), 2.0f);
 
 				// Post filter
-				const float inPostFilter = ladderFilter.process(sign * inDistort, 2.0f) * volumeCompensationPostFilter;
+				const float inPostFilter = ladderFilter.process(inDistort);
 
 				// Apply volume, mix and send to output
 				channelBuffer[sample] = volume * (mix * inPostFilter + mixInverse * in);
