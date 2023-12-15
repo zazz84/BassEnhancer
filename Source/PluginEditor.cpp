@@ -9,15 +9,14 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-const juce::Colour BassEnhancerAudioProcessorEditor::veryLight  = juce::Colour::fromHSV(0.7f, 0.5f, 0.7f, 1.0f);
-const juce::Colour BassEnhancerAudioProcessorEditor::light      = juce::Colour::fromHSV(0.7f, 0.5f, 0.6f, 1.0f);
-const juce::Colour BassEnhancerAudioProcessorEditor::medium     = juce::Colour::fromHSV(0.7f, 0.5f, 0.5f, 1.0f);
-const juce::Colour BassEnhancerAudioProcessorEditor::dark       = juce::Colour::fromHSV(0.7f, 0.5f, 0.4f, 1.0f);
-
 //==============================================================================
 BassEnhancerAudioProcessorEditor::BassEnhancerAudioProcessorEditor (BassEnhancerAudioProcessor& p, juce::AudioProcessorValueTreeState& vts)
     : AudioProcessorEditor (&p), audioProcessor (p), valueTreeState(vts)
 {
+	juce::Colour light = juce::Colour::fromHSV(HUE * 0.01f, 0.5f, 0.6f, 1.0f);
+	juce::Colour medium = juce::Colour::fromHSV(HUE * 0.01f, 0.5f, 0.5f, 1.0f);
+	juce::Colour dark = juce::Colour::fromHSV(HUE * 0.01f, 0.5f, 0.4f, 1.0f);
+
 	getLookAndFeel().setColour(juce::Slider::thumbColourId, dark);
 	getLookAndFeel().setColour(juce::Slider::rotarySliderFillColourId, medium);
 	getLookAndFeel().setColour(juce::Slider::rotarySliderOutlineColourId, light);
@@ -80,7 +79,7 @@ BassEnhancerAudioProcessorEditor::~BassEnhancerAudioProcessorEditor()
 
 void BassEnhancerAudioProcessorEditor::paint (juce::Graphics& g)
 {
-	g.fillAll(veryLight);
+	g.fillAll(juce::Colour::fromHSV(HUE * 0.01f, 0.5f, 0.7f, 1.0f));
 }
 
 void BassEnhancerAudioProcessorEditor::resized()

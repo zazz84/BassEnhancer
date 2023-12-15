@@ -24,14 +24,9 @@ public:
 	static const int LABEL_OFFSET = 25;
 	static const int SLIDER_WIDTH = 200;
 	static const int BOTTOM_MENU_HEIGHT = 50;
+	static const int HUE = 70;
 
 	static const int TYPE_BUTTON_GROUP = 1;
-
-	// Colours
-	static const juce::Colour veryLight;
-	static const juce::Colour light;
-	static const juce::Colour medium;
-	static const juce::Colour dark;
 
     //==============================================================================
 	void paint (juce::Graphics&) override;
@@ -41,8 +36,6 @@ public:
 	typedef juce::AudioProcessorValueTreeState::ComboBoxAttachment ComboBoxAttachment;
 
 private:
-    // This reference is provided as a quick way for your editor to
-    // access the processor object that created it.
     BassEnhancerAudioProcessor& audioProcessor;
 
 	juce::AudioProcessorValueTreeState& valueTreeState;
